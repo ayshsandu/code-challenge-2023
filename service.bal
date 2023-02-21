@@ -18,7 +18,7 @@ service /ecomm on new http:Listener(9090) {
         if conflictingIDs.length() > 0 {
             return {
                 body: {
-                    errmsg: string:'join(" ", "Conflicting ISBN Codes:", ...conflictingIDs)
+                    errmsg: string:'join(" ", "Conflicting Item Codes:", ...conflictingIDs)
                 }
             };
         } else {
@@ -30,7 +30,7 @@ service /ecomm on new http:Listener(9090) {
         }
     }
 
-    resource function get ites/[string id]() returns ItemEntry|InvalidISBNCodeError {
+    resource function get items/[string id]() returns ItemEntry|InvalidISBNCodeError {
         ItemEntry? bookEntry = itemTable[id];
         if bookEntry is () {
             return {
