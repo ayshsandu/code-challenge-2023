@@ -94,6 +94,11 @@ table<Items> key(id) ItemEntries = table [
 
 ];
 
+@graphql:ServiceConfig {
+    cors: {
+        allowOrigins: ["*"]
+    }
+}
 service /items on new graphql:Listener(8080) {
 
     // resource function get 'order(int id) returns Order|error => loadOrder(id);
