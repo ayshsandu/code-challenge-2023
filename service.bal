@@ -31,15 +31,15 @@ service /ecomm on new http:Listener(9090) {
     }
 
     resource function get items/[string id]() returns ItemEntry|InvalidISBNCodeError {
-        ItemEntry? bookEntry = itemTable[id];
-        if bookEntry is () {
+        ItemEntry? itemEntry = itemTable[id];
+        if itemEntry is () {
             return {
                 body: {
                     errmsg: string `Invalid Item Code: ${id}`
                 }
             };
         }
-        return bookEntry;
+        return itemEntry;
     }
 
     resource function put items/[string id]/actions(@http:Payload MemberAction memberAction) returns ItemEntry|InvalidISBNCodeError {
