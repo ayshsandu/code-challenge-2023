@@ -99,7 +99,7 @@ public type ItemEntry record {|
     boolean 'isAvailable;
     string includes;
     string intendedFor;
-    string[] color;
+    string color;
     string material;
 |};
 
@@ -128,7 +128,7 @@ public final table<ItemEntry> key(id) itemTable = table [
             price: 5.0,
             includes: "1 Sweater",
             intendedFor: "Small Dogs",
-            color: ["Red"],
+            color: "Red",
             material: "Cotton"
         },
         {
@@ -139,7 +139,7 @@ public final table<ItemEntry> key(id) itemTable = table [
             price: 150.0,
             includes: "1 Automatic Ball Launcher, 3 Tennis Balls",
             intendedFor: "Medium to Large Dogs",
-            color: ["Purple", "Grey"],
+            color: "Purple,Grey",
             material: "Plastic"
         },
         {
@@ -150,7 +150,7 @@ public final table<ItemEntry> key(id) itemTable = table [
             price: 29.99,
             includes: "1 Hardcover Book",
             intendedFor: "Dog Owners",
-            color: ["Multicolor"],
+            color: "Multicolor",
             material: "Paper"
         },
         {
@@ -161,7 +161,7 @@ public final table<ItemEntry> key(id) itemTable = table [
             price: 12.99,
             includes: "300 Poop Bags",
             intendedFor: "Dog Owners",
-            color: ["Green", "Blue", "Purple"],
+            color: "Green, Blue, Purple",
             material: "Biodegradable Plastic"
         }
     ];
