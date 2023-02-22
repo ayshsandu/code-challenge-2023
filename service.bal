@@ -44,56 +44,29 @@ service /ecomm on new http:Listener(9090) {
         return itemEntry;
     }
 
-    resource function put items/[string id]/actions(@http:Payload MemberAction memberAction) returns Item|InvalidItemCodeError {
-        Item? itemEntry = itemTable[id];
-        if itemEntry is () {
-            return {
-                body: {
-                    errmsg: string `Invalid ISBN Code: ${id}`
-                }
-            };
-        } else {
-            if memberAction.action == "borrow" {
-                if (!itemEntry.'isAvailable) {
-                    return {
-                        body: {
-                            errmsg: string `Book is not available to borrow: ${id}`
-                        }
-                    };
-                }
-
-                if (!customers.hasKey(memberAction.memberId) || customers.get(memberAction.memberId).length() == 0) {
-                    customers[memberAction.memberId] = {items: [id]};
-                } else {
-                    customers.get(memberAction.memberId).items.push(id);
-                }
-                itemEntry.isAvailable = false;
-                return itemEntry;
-            } else if memberAction.action == "return" {
-                if (!customers.hasKey(memberAction.memberId) || customers.get(memberAction.memberId).length() == 0) {
-                    return {
-                        body: {
-                            errmsg: string `Book is not borrowed by : ${memberAction.memberId}`
-                        }
-                    };
-                } else {
-                    Reader borrower = customers.get(memberAction.memberId);
-                    customers[memberAction.memberId].items = borrower.items.filter(i => i != id);
-                    itemEntry.isAvailable = true;
-                    return itemEntry;
-                }
-            } else {
-                return {
-                    body: {
-                        errmsg: string `Invalid Action: ${memberAction.action}`
-                    }
-                };
-            }
-        }
+    resource function put items/[string id](@http:Payload Item item) returns Item|InvalidItemCodeError {
+        return item;
     }
 
     // A resource function to get a subscription and add it to the subscription table
-    resource function post subscriptions(@http:Payload Subscription subscription) returns Subscription|InvalidItemCodeError {
+    resource function post subscriptions(@http:Payload Subscription subscription) returns InvalidItemCodeError?{
+        
+        Item? itemEntry = itemTable[subscription.itemId];
+        if itemEntry is () {
+            return {
+                body: {
+                    errmsg: string `Invalid Item Code: ${subscription.itemId}`
+                }
+            };
+        }
+        //check whether the subscription is already available
+        if userSubscriptions.hasKey([subscription.userId, subscription.itemId]) {
+            return {
+                body: {
+                    errmsg: string `Subscription already exists for Item Code: ${subscription.itemId}`
+                }
+            };
+        }
         userSubscriptions.add(subscription);
     }
 }
