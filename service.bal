@@ -4,14 +4,16 @@ import ballerina/http;
 # bound to port `9090`.
 service /ecomm on new http:Listener(9090) {
 
-    resource function get items() returns ItemEntry[] {
-        return itemTable.toArray();
+    resource function get items() returns ItemWithSubscription[] {
+        string userId = "d772c9f6-2807-4556-ba59-7ca9743428a2";
+        var userSubscriptions = userSubscriptions.filter(subscription => subscription.userId == userId);
+        return from var item in itemTable select {...item, isSubscribed: userSubscriptions.hasKey([userId, item.id])};
     }
 
-    resource function post items(@http:Payload ItemEntry[] itemEntries)
-                                    returns ItemEntry[]|ConflictingItemCodesError {
+    resource function post items(@http:Payload Item[] itemEntries)
+                                    returns Item[]|ConflictingItemCodesError {
 
-        string[] conflictingIDs = from ItemEntry itemEntry in itemEntries
+        string[] conflictingIDs = from Item itemEntry in itemEntries
             where itemTable.hasKey(itemEntry.id)
             select itemEntry.id;
 
@@ -30,8 +32,8 @@ service /ecomm on new http:Listener(9090) {
         }
     }
 
-    resource function get items/[string id]() returns ItemEntry|InvalidISBNCodeError {
-        ItemEntry? itemEntry = itemTable[id];
+    resource function get items/[string id]() returns Item|InvalidISBNCodeError {
+        Item? itemEntry = itemTable[id];
         if itemEntry is () {
             return {
                 body: {
@@ -42,8 +44,8 @@ service /ecomm on new http:Listener(9090) {
         return itemEntry;
     }
 
-    resource function put items/[string id]/actions(@http:Payload MemberAction memberAction) returns ItemEntry|InvalidISBNCodeError {
-        ItemEntry? itemEntry = itemTable[id];
+    resource function put items/[string id]/actions(@http:Payload MemberAction memberAction) returns Item|InvalidISBNCodeError {
+        Item? itemEntry = itemTable[id];
         if itemEntry is () {
             return {
                 body: {
@@ -89,9 +91,21 @@ service /ecomm on new http:Listener(9090) {
             }
         }
     }
+
+    // A resource function to get a subscription and add it to the subscription table
+    resource function post subscriptions(@http:Payload Subscription subscription) returns Subscription|InvalidISBNCodeError {
+        Subscription? itemEntry = userSubscriptions[subscription.userId, subscription.itemId];
+        if itemEntry is () {
+            //add subscrition.subscription to itemEntry.subscription
+            return subscription;
+        } else {
+            userSubscriptions.add(subscription);
+            return subscription;
+        }
+    }
 }
 
-public type ItemEntry record {|
+public type Item record {|
     readonly string id;
     string title;
     string description;
@@ -101,6 +115,11 @@ public type ItemEntry record {|
     string intendedFor;
     string color;
     string material;
+|};
+
+public type ItemWithSubscription record {|
+    *Item;
+    boolean isSubscribed;
 |};
 
 public type Address record {|
@@ -119,7 +138,27 @@ public type MemberAction record {|
     string memberId;
 |};
 
-public final table<ItemEntry> key(id) itemTable = table [
+// A type representing user subscription to an item
+public type Subscription record {|
+    readonly string userId;
+    readonly string itemId;
+|};
+
+//* a table with sample subscription data as a Subscription record array
+public final table<Subscription> key(userId, itemId) userSubscriptions = table [
+    {
+        userId : "d772c9f6-2807-4556-ba59-7ca9743428a2",
+        itemId : "9780743273565"
+    },
+    {
+        userId : "d772c9f6-2807-4556-ba59-7ca9743428a2",
+        itemId : "9781623363586"
+    }
+];
+
+
+
+public final table<Item> key(id) itemTable = table [
         {
             id: "9780743273565",
             title: "Top Paw® Valentine's Day Single Dog Sweater",
@@ -189,3 +228,14 @@ public type ErrorMsg record {|
     string errmsg;
 |};
 
+// function getUserSubcribedItems(string userId) returns Item[] {
+//     var subscriptions = userSubscriptions.filter(s => s.userId == userId);
+//     Item[] itemEntries = [];
+//     foreach var subscription in subscriptions {
+//         Item? itemEntry = itemTable.get(subscription.itemId);
+//         if itemEntry is Item {
+//             itemEntries.push(itemEntry);
+//         }
+//     }
+//     return itemEntries;
+// }
