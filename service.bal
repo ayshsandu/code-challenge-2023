@@ -151,19 +151,7 @@ public final table<Item> key(id) itemTable = table [
             color: "Purple,Grey",
             material: "Plastic"
         },
-        {
-            id: "9781452151342",
-            imageUrl: "https://images.squarespace-cdn.com/content/v1/56b27cd486db4396b83ed266/1585343422671-I92GY8S1288YJAGBT7OY/Willow%2Bthe%2BCorgi%2BDog%2BHouse.jpg",
-            title: "Barkitecture: Designer Dog Houses",
-            description: "Upgrade your dog's living space with Barkitecture, a stunning collection of designer dog houses. Featuring 20 unique designs from leading architects and designers, this book showcases the latest trends in dog house design, from minimalist modernism to cozy cottage style. It's the perfect inspiration for anyone looking to build or renovate their pup's home.",
-            isAvailable: true,
-            price: 29.99,
-            includes: "1 Hardcover Book",
-            intendedFor: "Dog Owners",
-            color: "Multicolor",
-            material: "Paper"
-        },
-        {
+         {
             id: "9781510724542",
             imageUrl: "https://m.media-amazon.com/images/I/71aVxw+AKIL._AC_UF894,1000_QL80_.jpg",
             title: "Pogi's Poop Bags",
@@ -175,6 +163,19 @@ public final table<Item> key(id) itemTable = table [
             color: "Green, Blue, Purple",
             material: "Biodegradable Plastic"
         }
+        // {
+        //     id: "9781452151342",
+        //     imageUrl: "https://images.squarespace-cdn.com/content/v1/56b27cd486db4396b83ed266/1585343422671-I92GY8S1288YJAGBT7OY/Willow%2Bthe%2BCorgi%2BDog%2BHouse.jpg",
+        //     title: "Barkitecture: Designer Dog Houses",
+        //     description: "Upgrade your dog's living space with Barkitecture, a stunning collection of designer dog houses. Featuring 20 unique designs from leading architects and designers, this book showcases the latest trends in dog house design, from minimalist modernism to cozy cottage style. It's the perfect inspiration for anyone looking to build or renovate their pup's home.",
+        //     isAvailable: true,
+        //     price: 29.99,
+        //     includes: "1 Hardcover Book",
+        //     intendedFor: "Dog Owners",
+        //     color: "Multicolor",
+        //     material: "Paper"
+        // },
+        
     ];
 
 public type ConflictingItemCodesError record {|
