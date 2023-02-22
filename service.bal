@@ -68,11 +68,13 @@ service /ecomm on new http:Listener(9090) {
             };
         }
         userSubscriptions.add(subscription);
+        return ;
     }
 }
 
 public type Item record {|
     readonly string id;
+    string imageUrl;
     string title;
     string description;
     decimal price;
@@ -127,6 +129,7 @@ public final table<Subscription> key(userId, itemId) userSubscriptions = table [
 public final table<Item> key(id) itemTable = table [
         {
             id: "9780743273565",
+            imageUrl: "https://s.yimg.com/lo/api/res/1.2/V04hK2wI1fFem4IFxZXXIQ--/YXBwaWQ9ZWNfaG9yaXpvbnRhbDtoPTQwMDtzcz0xO3c9NDAw/http://s7d6.scene7.com/is/image/PetSmart/5334729.cf.jpg",
             title: "Top Paw® Valentine's Day Single Dog Sweater",
             description: "Dress your pup up appropriately for Valentine's Day with this Top Paw Valentine's Day Kisses Dog Sweater. This sweet sweater slips on and off easily while offering a comfortable fit, and lets it be known that your pup is single and ready to mingle",
             isAvailable: true,
@@ -138,6 +141,7 @@ public final table<Item> key(id) itemTable = table [
         },
         {
             id: "9781623363586",
+            imageUrl: "https://m.media-amazon.com/images/I/51zTNwiClXL.jpg",
             title: "PetSafe® Automatic Ball Launcher",
             description: "Keep your furry friend entertained for hours with the PetSafe Automatic Ball Launcher. This interactive toy launches standard-sized tennis balls up to 30 feet away, allowing your dog to chase and retrieve them without any effort from you. With multiple safety sensors and automatic rest periods, it's the perfect toy for energetic dogs who need a little extra exercise.",
             isAvailable: true,
@@ -149,6 +153,7 @@ public final table<Item> key(id) itemTable = table [
         },
         {
             id: "9781452151342",
+            imageUrl: "https://images.squarespace-cdn.com/content/v1/56b27cd486db4396b83ed266/1585343422671-I92GY8S1288YJAGBT7OY/Willow%2Bthe%2BCorgi%2BDog%2BHouse.jpg",
             title: "Barkitecture: Designer Dog Houses",
             description: "Upgrade your dog's living space with Barkitecture, a stunning collection of designer dog houses. Featuring 20 unique designs from leading architects and designers, this book showcases the latest trends in dog house design, from minimalist modernism to cozy cottage style. It's the perfect inspiration for anyone looking to build or renovate their pup's home.",
             isAvailable: true,
@@ -160,6 +165,7 @@ public final table<Item> key(id) itemTable = table [
         },
         {
             id: "9781510724542",
+            imageUrl: "https://m.media-amazon.com/images/I/71aVxw+AKIL._AC_UF894,1000_QL80_.jpg",
             title: "Pogi's Poop Bags",
             description: "Make cleaning up after your dog a little less unpleasant with Pogi's Poop Bags. Made from high-quality, eco-friendly materials, these bags are strong, leak-proof, and deodorized, ensuring a clean and hygienic pick-up every time. Plus, the bright and colorful design makes them easy to spot in any setting.",
             isAvailable: true,
