@@ -1,13 +1,25 @@
 import ballerina/http;
+import ballerina/jwt;
+// import ballerina/log;
 
 # A service representing a network-accessible API
 # bound to port `9090`.
 service /ecomm on new http:Listener(9090) {
 
-    resource function get items() returns ItemWithSubscription[] {
-        string userId = "d772c9f6-2807-4556-ba59-7ca9743428a2";
-        var userSubscriptions = userSubscriptions.filter(subscription => subscription.userId == userId);
-        return from var item in itemTable select {...item, isSubscribed: userSubscriptions.hasKey([userId, item.id])};
+    resource function get items(@http:Header {name: "x-jwt-assertion"} string? authHeader) returns Item[]|ItemWithSubscription[]|error {
+        if authHeader != () {
+            var jwtTokenPayLoad = check jwt:decode(authHeader);
+            var userId = jwtTokenPayLoad[1]["sub"];
+            // log:printInfo("[x-jwt-assertion]", userId = userId);
+            // string userId = "d772c9f6-2807-4556-ba59-7ca9743428a2";
+            if userId != () {
+                var userSubscriptions = userSubscriptions.filter(subscription => subscription.userId == userId);
+                ItemWithSubscription[] items = from var item in itemTable
+                    select {...item, isSubscribed: userSubscriptions.hasKey([userId, item.id])};
+                return items;
+            }
+        }
+        return itemTable.toArray();
     }
 
     resource function post items(@http:Payload Item[] itemEntries)
@@ -49,8 +61,8 @@ service /ecomm on new http:Listener(9090) {
     }
 
     // A resource function to get a subscription and add it to the subscription table
-    resource function post subscriptions(@http:Payload Subscription subscription) returns InvalidItemCodeError?{
-        
+    resource function post subscriptions(@http:Payload Subscription subscription) returns InvalidItemCodeError? {
+
         Item? itemEntry = itemTable[subscription.itemId];
         if itemEntry is () {
             return {
@@ -68,7 +80,7 @@ service /ecomm on new http:Listener(9090) {
             };
         }
         userSubscriptions.add(subscription);
-        return ;
+        return;
     }
 }
 
@@ -114,17 +126,11 @@ public type Subscription record {|
 
 //* a table with sample subscription data as a Subscription record array
 public final table<Subscription> key(userId, itemId) userSubscriptions = table [
-    {
-        userId : "d772c9f6-2807-4556-ba59-7ca9743428a2",
-        itemId : "9780743273565"
-    },
-    {
-        userId : "d772c9f6-2807-4556-ba59-7ca9743428a2",
-        itemId : "9781623363586"
-    }
-];
-
-
+        {
+            userId: "d772c9f6-2807-4556-ba59-7ca9743428a2",
+            itemId: "9780743273565"
+        }
+    ];
 
 public final table<Item> key(id) itemTable = table [
         {
@@ -151,7 +157,7 @@ public final table<Item> key(id) itemTable = table [
             color: "Purple,Grey",
             material: "Plastic"
         },
-         {
+        {
             id: "9781510724542",
             imageUrl: "https://m.media-amazon.com/images/I/71aVxw+AKIL._AC_UF894,1000_QL80_.jpg",
             title: "Pogi's Poop Bags",
@@ -174,8 +180,8 @@ public final table<Item> key(id) itemTable = table [
         //     intendedFor: "Dog Owners",
         //     color: "Multicolor",
         //     material: "Paper"
-        // },
-        
+        // }
+
     ];
 
 public type ConflictingItemCodesError record {|
