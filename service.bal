@@ -32,7 +32,7 @@ service /ecomm on new http:Listener(9090) {
         }
     }
 
-    resource function get items/[string id]() returns Item|InvalidISBNCodeError {
+    resource function get items/[string id]() returns Item|InvalidItemCodeError {
         Item? itemEntry = itemTable[id];
         if itemEntry is () {
             return {
@@ -44,7 +44,7 @@ service /ecomm on new http:Listener(9090) {
         return itemEntry;
     }
 
-    resource function put items/[string id]/actions(@http:Payload MemberAction memberAction) returns Item|InvalidISBNCodeError {
+    resource function put items/[string id]/actions(@http:Payload MemberAction memberAction) returns Item|InvalidItemCodeError {
         Item? itemEntry = itemTable[id];
         if itemEntry is () {
             return {
@@ -93,15 +93,8 @@ service /ecomm on new http:Listener(9090) {
     }
 
     // A resource function to get a subscription and add it to the subscription table
-    resource function post subscriptions(@http:Payload Subscription subscription) returns Subscription|InvalidISBNCodeError {
-        Subscription? itemEntry = userSubscriptions[subscription.userId, subscription.itemId];
-        if itemEntry is () {
-            //add subscrition.subscription to itemEntry.subscription
-            return subscription;
-        } else {
-            userSubscriptions.add(subscription);
-            return subscription;
-        }
+    resource function post subscriptions(@http:Payload Subscription subscription) returns Subscription|InvalidItemCodeError {
+        userSubscriptions.add(subscription);
     }
 }
 
@@ -205,16 +198,12 @@ public final table<Item> key(id) itemTable = table [
         }
     ];
 
-public final map<Reader> customers = {
-    "00001": {items: ["9780141439518"]}
-};
-
 public type ConflictingItemCodesError record {|
     *http:Conflict;
     ErrorMsg body;
 |};
 
-public type InvalidISBNCodeError record {|
+public type InvalidItemCodeError record {|
     *http:NotFound;
     ErrorMsg body;
 |};
