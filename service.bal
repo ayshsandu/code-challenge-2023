@@ -1,6 +1,11 @@
 import ballerina/http;
 import ballerina/jwt;
-// import ballerina/log;
+// import wso2/choreo.sendemail as sendemail;
+import ballerina/email;
+
+import ballerina/log;
+import ballerina/io;
+import ballerina/regex;
 
 # A service representing a network-accessible API
 # bound to port `9090`.
@@ -66,7 +71,7 @@ service /ecomm on new http:Listener(9090) {
     }
 
     // A resource function to get a subscription and add it to the subscription table
-    resource function post subscriptions(@http:Payload Subscription subscription) returns InvalidItemCodeError? {
+    resource function post subscriptions(@http:Payload Subscription subscription) returns InvalidItemCodeError?|error {
 
         Item? itemEntry = itemTable[subscription.itemId];
         if itemEntry is () {
@@ -90,7 +95,7 @@ service /ecomm on new http:Listener(9090) {
 
     //A resource function to delete a subscription for a given itemId in the request, by reading the userId from the JWT token
     resource function delete subscriptions/[string itemId](@http:Header {name: "x-jwt-assertion"} string? authHeader)
-                                                            returns InvalidItemCodeError? | error {
+                                                            returns InvalidItemCodeError?|error {
 
         if authHeader != () {
             var jwtTokenPayLoad = check jwt:decode(authHeader);
@@ -124,19 +129,83 @@ service /ecomm on new http:Listener(9090) {
             }
         };
     }
+
+    // A resource function to update fields of an item in the ItemTable for a item.id specified in the path
+    resource function put items/[string id]/update(@http:Payload Item item) returns Item|InvalidItemCodeError {
+        Item? itemEntry = itemTable[id];
+        if itemEntry is () {
+            return {
+                body: {
+                    errmsg: string `Invalid Item Code: ${id}`
+                }
+            };
+        }
+        itemEntry.imageUrl = item.imageUrl;
+        itemEntry.title = item.title;
+        itemEntry.description = item.description;
+        itemEntry.price = item.price;
+        itemEntry.isAvailable = item.isAvailable;
+        itemEntry.includes = item.includes;
+        itemEntry.intendedFor = item.intendedFor;
+        itemEntry.color = item.color;
+        itemEntry.material = item.material;
+        return itemEntry;
+    }
+
+    // A resource function to patch a field of an item in the ItemTable for a item.id specified in the path
+    resource function patch items/[string id]/update(@http:Payload Item item) returns Item|InvalidItemCodeError|error {
+        Item? itemEntry = itemTable[id];
+        if itemEntry is () {
+            return {
+                body: {
+                    errmsg: string `Invalid Item Code: ${id}`
+                }
+            };
+        }
+        if item.imageUrl != () {
+            itemEntry.imageUrl = item.imageUrl;
+        }
+        if item.title != () {
+            itemEntry.title = item.title;
+        }
+        if item.description != () {
+            itemEntry.description = item.description;
+        }
+        if item.price != () {
+            // itemEntry.price = item.price;
+            _ = check sendEmail(itemEntry, item);
+        }
+        if item.isAvailable != () {
+            itemEntry.isAvailable = item.isAvailable;
+        }
+        if item.includes != () {
+            itemEntry.includes = item.includes;
+        }
+        if item.intendedFor != () {
+            itemEntry.intendedFor = item.intendedFor;
+        }
+        if item.color != () {
+            itemEntry.color = item.color;
+        }
+        if item.material != () {
+            itemEntry.material = item.material;
+        }
+        return itemEntry;
+    }
+
 }
 
 public type Item record {|
     readonly string id;
-    string imageUrl;
-    string title;
-    string description;
-    decimal price;
-    boolean 'isAvailable;
-    string includes;
-    string intendedFor;
-    string color;
-    string material;
+    string? imageUrl;
+    string? title;
+    string? description;
+    decimal? price;
+    boolean? 'isAvailable;
+    string? includes;
+    string? intendedFor;
+    string? color;
+    string? material;
 |};
 
 public type ItemWithSubscription record {|
@@ -151,8 +220,9 @@ public type Address record {|
     string locationLink;
 |};
 
-public type Reader record {|
-    string[] items;
+public type Customer record {|
+    readonly string id;
+    string email;
 |};
 
 public type MemberAction record {|
@@ -174,6 +244,15 @@ public final table<Subscription> key(userId, itemId) userSubscriptions = table [
         }
     ];
 
+//* a table with userid and email data as a « record array
+public final table<Customer> key(id) customers = table [
+        {
+            id: "d772c9f6-2807-4556-ba59-7ca9743428a2",
+            email: "ayshsandu@gmail.com"
+        }
+    ];
+
+//* a table with sample item data as a Item record array
 public final table<Item> key(id) itemTable = table [
         {
             id: "9780743273565",
@@ -245,14 +324,57 @@ public type ErrorMsg record {|
     string errmsg;
 |};
 
-// function getUserSubcribedItems(string userId) returns Item[] {
-//     var subscriptions = userSubscriptions.filter(s => s.userId == userId);
-//     Item[] itemEntries = [];
-//     foreach var subscription in subscriptions {
-//         Item? itemEntry = itemTable.get(subscription.itemId);
-//         if itemEntry is Item {
-//             itemEntries.push(itemEntry);
-//         }
-//     }
-//     return itemEntries;
-// }
+public function getEmails(string itemId) returns string[] {
+    var subscriptions = userSubscriptions.filter(s => s.itemId == itemId);
+    return from var subscription in subscriptions
+        select customers.get(subscription.userId).email;
+}
+
+//A function to send an email to the user when a new item is added using gmail:Client
+# Description
+#
+# + item - Parameter Description
+# + return - Return Value Description
+function sendEmail(Item item, Item newItem) returns error? {
+
+    if (newItem.price < item.price) {
+        string[] emails = getEmails(item.id);
+        string emailsString = ",".'join(...emails);
+         log:printInfo("BCC Address", emails = emailsString);
+
+        // Define a html body for the email with item update details
+        string readContent = check io:fileReadString("Email.html");
+        var title = item.title ?: "No Title";
+        var price = newItem.price.toString();
+
+        readContent = regex:replaceAll(readContent, "TITLE", title);
+        readContent = regex:replaceAll(readContent, "PRICE", price);
+        // io:println(readContent);
+
+        //Send email with choreo email connector
+        // sendemail:Client emailClient = check new ();
+        // _ = check emailClient->sendEmail("ayesha@wso2.com", readContent, "", emailsString);
+        //Send email with SmtpClient
+        email:SmtpConfiguration smtpConfig = {
+            port: 2525,
+            security: email:START_TLS_AUTO
+        };
+
+        email:SmtpClient smtpClient = check new ("smtp.mailtrap.io", "cac12489c7c00b", "9f11df0a66bcc3", smtpConfig);
+        email:Message email = {
+            to: ["sales@ecomm.com"],
+            cc: [],
+            bcc: emails,
+            subject: "[PetStore Price Drop for ",
+            body: readContent,
+            'from: "smtp.mailtrap.io",
+            sender: "smtp.mailtrap.io",
+            replyTo: ["replyTo1@email.com", "replyTo2@email.com"],
+            headers: {
+                "Content-Type": "text/html"}
+        };
+        item.price = newItem.price;
+        check smtpClient->sendMessage(email);
+    }
+
+}
