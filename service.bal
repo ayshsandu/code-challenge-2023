@@ -6,7 +6,7 @@ import ballerina/jwt;
 # bound to port `9090`.
 service /ecomm on new http:Listener(9090) {
 
-    resource function get items(@http:Header {name: "x-jwt-assertion"} string? authHeader) returns Item[]|ItemWithSubscription[]|error {
+    resource function get itemsforuser(@http:Header {name: "x-jwt-assertion"} string? authHeader) returns Item[]|ItemWithSubscription[]|error {
         if authHeader != () {
             var jwtTokenPayLoad = check jwt:decode(authHeader);
             var userId = jwtTokenPayLoad[1]["sub"];
@@ -19,6 +19,11 @@ service /ecomm on new http:Listener(9090) {
                 return items;
             }
         }
+        return itemTable.toArray();
+    }
+
+    //A resource function that returns all the items in the itemsTable
+    resource function get items() returns Item[] {
         return itemTable.toArray();
     }
 
@@ -128,7 +133,7 @@ public type Subscription record {|
 public final table<Subscription> key(userId, itemId) userSubscriptions = table [
         {
             userId: "d772c9f6-2807-4556-ba59-7ca9743428a2",
-            itemId: "9780743273565"
+            itemId: "9781623363586"
         }
     ];
 
