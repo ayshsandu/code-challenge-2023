@@ -87,6 +87,43 @@ service /ecomm on new http:Listener(9090) {
         userSubscriptions.add(subscription);
         return;
     }
+
+    //A resource function to delete a subscription for a given itemId in the request, by reading the userId from the JWT token
+    resource function delete subscriptions/[string itemId](@http:Header {name: "x-jwt-assertion"} string? authHeader)
+                                                            returns InvalidItemCodeError? | error {
+
+        if authHeader != () {
+            var jwtTokenPayLoad = check jwt:decode(authHeader);
+            var userId = jwtTokenPayLoad[1]["sub"];
+            // log:printInfo("[x-jwt-assertion]", userId = userId);
+            // string userId = "d772c9f6-2807-4556-ba59-7ca9743428a2";
+            if userId != () {
+                Item? itemEntry = itemTable[itemId];
+                if itemEntry is () {
+                    return {
+                        body: {
+                            errmsg: string `Invalid Item Code: ${itemId}`
+                        }
+                    };
+                }
+                //check whether the subscription is already available
+                if !userSubscriptions.hasKey([userId, itemId]) {
+                    return {
+                        body: {
+                            errmsg: string `Subscription does not exist for Item Code: ${itemId}`
+                        }
+                    };
+                }
+                _ = userSubscriptions.remove([userId, itemId]);
+                return;
+            }
+        }
+        return {
+            body: {
+                errmsg: string `Invalid JWT token`
+            }
+        };
+    }
 }
 
 public type Item record {|
