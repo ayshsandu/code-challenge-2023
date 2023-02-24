@@ -71,7 +71,7 @@ service /ecomm on new http:Listener(9090) {
     }
 
     // A resource function to get a subscription and add it to the subscription table
-    resource function post subscriptions(@http:Payload Subscription subscription) returns InvalidItemCodeError?|error {
+    resource function post subscriptions(@http:Payload Subscription subscription, @http:Header {name: "x-jwt-assertion"} string? authHeader) returns InvalidItemCodeError?|error {
 
         Item? itemEntry = itemTable[subscription.itemId];
         if itemEntry is () {
@@ -90,6 +90,18 @@ service /ecomm on new http:Listener(9090) {
             };
         }
         userSubscriptions.add(subscription);
+        // add an item to the customers table with userid and email if it does not exist
+        if !customers.hasKey(subscription.userId) {
+            if authHeader != () {
+                var jwtTokenPayLoad = check jwt:decode(authHeader);
+                //  log:printInfo("[x-jwt-assertion]", jwtTokenPayLoad = jwtTokenPayLoad);
+
+                var email = jwtTokenPayLoad[1]["username"].toString();
+                // log:printInfo("[x-jwt-assertion]", email = email);
+                // customers.add({id: subscription.userId, email: email});
+
+            }
+        }
         return;
     }
 
@@ -342,7 +354,7 @@ function sendEmail(Item item, Item newItem) returns error? {
         // log:printInfo("BCC Address", emails = emailsString);
 
         // Define a html body for the email with item update details
-        string readContent = check io:fileReadString("/tmp/Email.html");
+        string readContent = check io:fileReadString("./tmp/Email.html");
         var title = item.title ?: "No Title";
         var price = newItem.price.toString();
 
