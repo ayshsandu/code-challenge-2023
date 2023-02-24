@@ -363,15 +363,15 @@ function sendEmail(Item item, Item newItem) returns error? {
         // io:println(readContent);
 
         //Send email with choreo email connector
-        // sendemail:Client emailClient = check new ();
         // _ = check emailClient->sendEmail("*****@wso2.com", readContent, "", emailsString);
+        
         //Send email with SmtpClient
         email:SmtpConfiguration smtpConfig = {
             port: 2525,
             security: email:START_TLS_AUTO
         };
 
-        email:SmtpClient smtpClient = check new ("smtp.mailtrap.io", "cac12489c7c00b", "9f11df0a66bcc3", smtpConfig);
+        email:SmtpClient smtpClient = check new ("smtp.mailtrap.io", "<username>", "<password>", smtpConfig);
         email:Message email = {
             to: emails,
             cc: [],
@@ -385,7 +385,8 @@ function sendEmail(Item item, Item newItem) returns error? {
                 "Content-Type": "text/html"}
         };
         item.price = newItem.price;
-        check smtpClient->sendMessage(email);
+        // call smtp client asynchronous send
+        _ = start smtpClient->sendMessage(email);
     }
 
 }
