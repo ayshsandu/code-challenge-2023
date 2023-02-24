@@ -3,7 +3,7 @@ import ballerina/jwt;
 // import wso2/choreo.sendemail as sendemail;
 import ballerina/email;
 
-import ballerina/log;
+// import ballerina/log;
 import ballerina/io;
 import ballerina/regex;
 
@@ -339,8 +339,7 @@ function sendEmail(Item item, Item newItem) returns error? {
 
     if (newItem.price < item.price) {
         string[] emails = getEmails(item.id);
-        string emailsString = ",".'join(...emails);
-         log:printInfo("BCC Address", emails = emailsString);
+        // log:printInfo("BCC Address", emails = emailsString);
 
         // Define a html body for the email with item update details
         string readContent = check io:fileReadString("Email.html");
@@ -353,7 +352,7 @@ function sendEmail(Item item, Item newItem) returns error? {
 
         //Send email with choreo email connector
         // sendemail:Client emailClient = check new ();
-        // _ = check emailClient->sendEmail("ayesha@wso2.com", readContent, "", emailsString);
+        // _ = check emailClient->sendEmail("*****@wso2.com", readContent, "", emailsString);
         //Send email with SmtpClient
         email:SmtpConfiguration smtpConfig = {
             port: 2525,
@@ -362,10 +361,10 @@ function sendEmail(Item item, Item newItem) returns error? {
 
         email:SmtpClient smtpClient = check new ("smtp.mailtrap.io", "cac12489c7c00b", "9f11df0a66bcc3", smtpConfig);
         email:Message email = {
-            to: ["sales@ecomm.com"],
+            to: emails,
             cc: [],
             bcc: emails,
-            subject: "[PetStore Price Drop for ",
+            subject: "[PetStore] Price Drop for " + title,
             body: readContent,
             'from: "smtp.mailtrap.io",
             sender: "smtp.mailtrap.io",
