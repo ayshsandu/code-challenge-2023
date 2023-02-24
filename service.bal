@@ -3,7 +3,7 @@ import ballerina/jwt;
 // import wso2/choreo.sendemail as sendemail;
 import ballerina/email;
 
-// import ballerina/log;
+import ballerina/log;
 import ballerina/io;
 import ballerina/regex;
 
@@ -97,7 +97,7 @@ service /ecomm on new http:Listener(9090) {
                 //  log:printInfo("[x-jwt-assertion]", jwtTokenPayLoad = jwtTokenPayLoad);
 
                 var email = jwtTokenPayLoad[1]["username"].toString();
-                // log:printInfo("[x-jwt-assertion]", email = email);
+                log:printInfo("[x-jwt-assertion]", email = email);
                 // customers.add({id: subscription.userId, email: email});
 
             }
