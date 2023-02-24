@@ -354,7 +354,7 @@ function sendEmail(Item item, Item newItem) returns error? {
         // log:printInfo("BCC Address", emails = emailsString);
 
         // Define a html body for the email with item update details
-        string readContent = check io:fileReadString("./tmp/Email.html");
+        string readContent = check io:fileReadString("/tmp/Email.html");
         var title = item.title ?: "No Title";
         var price = newItem.price.toString();
 
