@@ -13,6 +13,8 @@ const string CONST_USERNAME_CLAIM = "username";
 const string CONST_PRICE = "PRICE";
 const string CONST_TITLE = "TITLE";
 
+configurable EmailServerConfig emailServerConfig = ?;
+
 # A service representing a network-accessible API
 # bound to port `9090`.
 service /ecomm on new http:Listener(9090) {
@@ -261,15 +263,18 @@ public type Customer record {|
     string email;
 |};
 
-public type MemberAction record {|
-    string action;
-    string memberId;
-|};
-
 // A type representing user subscription to an item
 public type Subscription record {|
     readonly string userId;
     readonly string itemId;
+|};
+
+// A type representing the emailServer configuration
+public type EmailServerConfig record {|
+    string host;
+    string username;
+    string password;
+    int port;
 |};
 
 //* a table with sample subscription data as a Subscription record array
@@ -384,19 +389,19 @@ function sendEmail(Item item, decimal? oldPrice, decimal? newPrice) returns erro
 
         readContent = regex:replaceAll(readContent, CONST_TITLE, title);
         readContent = regex:replaceAll(readContent, CONST_PRICE, price);
-        io:println(emails);
+        log:printInfo("Emails: ", emails = emails);
 
         //Send email with choreo email connector
         // _ = check emailClient->sendEmail("*****@wso2.com", readContent, "", emailsString);
 
         //Send email with SmtpClient
         email:SmtpConfiguration smtpConfig = {
-            port: 2525,
+            port: emailServerConfig.port,
             security: email:START_TLS_AUTO
         };
 
         // create smtp client with connection parameters (https://mailtrap.io/)
-        email:SmtpClient smtpClient = check new ("smtp.mailtrap.io", "cac12489c7c00b", "9f11df0a66bcc3", smtpConfig);
+        email:SmtpClient smtpClient = check new (emailServerConfig.host, emailServerConfig.username, emailServerConfig.password, smtpConfig);
         email:Message email = {
             to: emails,
             cc: [],
@@ -411,6 +416,7 @@ function sendEmail(Item item, decimal? oldPrice, decimal? newPrice) returns erro
             }
         };
 
+        log:printInfo("Email emailServerUsername ", emailConfig = emailServerConfig.toString());
         // call smtp client asynchronous send
         _ = start smtpClient->sendMessage(email);
     }
