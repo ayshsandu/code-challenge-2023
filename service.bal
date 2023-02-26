@@ -182,7 +182,7 @@ service /ecomm on new http:Listener(9090) {
         itemEntry.intendedFor = item.intendedFor;
         itemEntry.color = item.color;
         itemEntry.material = item.material;
-        
+
         // Send an email to the subscribers if the price of the item is reduced
         _ = start sendEmail(itemEntry, oldPrice, item.price);
 
@@ -378,6 +378,8 @@ public function getEmails(string itemId) returns string[] {
 # + return - Error if the email sending fails
 function sendEmail(Item item, decimal? oldPrice, decimal? newPrice) returns error? {
 
+    log:printInfo("Price Change: ", oldPrice = oldPrice.toString(), newPrice = newPrice.toString());
+
     if (newPrice < oldPrice) {
         string[] emails = getEmails(item.id);
         // log:printInfo("BCC Address", emails = emailsString);
@@ -389,7 +391,6 @@ function sendEmail(Item item, decimal? oldPrice, decimal? newPrice) returns erro
 
         readContent = regex:replaceAll(readContent, CONST_TITLE, title);
         readContent = regex:replaceAll(readContent, CONST_PRICE, price);
-        log:printInfo("Emails: ", emails = emails);
 
         //Send email with choreo email connector
         // _ = check emailClient->sendEmail("*****@wso2.com", readContent, "", emailsString);
@@ -416,7 +417,7 @@ function sendEmail(Item item, decimal? oldPrice, decimal? newPrice) returns erro
             }
         };
 
-        log:printInfo("Email emailServerUsername ", emailConfig = emailServerConfig.toString());
+        log:printInfo("Sending Emails to", emails = emails);
         // call smtp client asynchronous send
         _ = start smtpClient->sendMessage(email);
     }
