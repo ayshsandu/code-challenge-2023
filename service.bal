@@ -7,16 +7,22 @@ import ballerina/log;
 import ballerina/io;
 import ballerina/regex;
 
+const string CONST_X_JWT_ASSERTION = "x-jwt-assertion";
+const string CONST_SUB_CLAIM = "sub";
+const string CONST_USERNAME_CLAIM = "username";
+const string CONST_PRICE = "PRICE";
+const string CONST_TITLE = "TITLE";
+
 # A service representing a network-accessible API
 # bound to port `9090`.
 service /ecomm on new http:Listener(9090) {
 
-    resource function get itemsforuser(@http:Header {name: "x-jwt-assertion"} string? authHeader) returns Item[]|ItemWithSubscription[]|error {
+    resource function get itemsforuser(@http:Header {name: CONST_X_JWT_ASSERTION} string? authHeader) returns Item[]|ItemWithSubscription[]|error {
         if authHeader != () {
             var jwtTokenPayLoad = check jwt:decode(authHeader);
-            var userId = jwtTokenPayLoad[1]["sub"];
-            // log:printInfo("[x-jwt-assertion]", userId = userId);
-            // string userId = "d772c9f6-2807-4556-ba59-7ca9743428a2";
+            var userId = jwtTokenPayLoad[1][CONST_SUB_CLAIM];
+            // log:printInfo(CONST_SUB_CLAIM, userId = userId);
+            // string userId = "d772c9f6-2807-4556-ba59-7ca9743428a2"; //for debugging
             if userId != () {
                 var userSubscriptions = userSubscriptions.filter(subscription => subscription.userId == userId);
                 ItemWithSubscription[] items = from var item in itemTable
@@ -54,6 +60,7 @@ service /ecomm on new http:Listener(9090) {
         }
     }
 
+    //* A resource function to get an item by id from the itemsTable
     resource function get items/[string id]() returns Item|InvalidItemCodeError {
         Item? itemEntry = itemTable[id];
         if itemEntry is () {
@@ -66,12 +73,8 @@ service /ecomm on new http:Listener(9090) {
         return itemEntry;
     }
 
-    resource function put items/[string id](@http:Payload Item item) returns Item|InvalidItemCodeError {
-        return item;
-    }
-
     // A resource function to get a subscription and add it to the subscription table
-    resource function post subscriptions(@http:Payload Subscription subscription, @http:Header {name: "x-jwt-assertion"} string? authHeader) returns InvalidItemCodeError?|error {
+    resource function post subscriptions(@http:Payload Subscription subscription, @http:Header {name: CONST_X_JWT_ASSERTION} string? authHeader) returns InvalidItemCodeError?|error {
 
         Item? itemEntry = itemTable[subscription.itemId];
         if itemEntry is () {
@@ -81,37 +84,52 @@ service /ecomm on new http:Listener(9090) {
                 }
             };
         }
-        //check whether the subscription is already available
-        if userSubscriptions.hasKey([subscription.userId, subscription.itemId]) {
-            return {
-                body: {
-                    errmsg: string `Subscription already exists for Item Code: ${subscription.itemId}`
-                }
-            };
-        }
-        userSubscriptions.add(subscription);
-        // add an item to the customers table with userid and email if it does not exist
-        if !customers.hasKey(subscription.userId) {
-            if authHeader != () {
-                var jwtTokenPayLoad = check jwt:decode(authHeader);
-                //  log:printInfo("[x-jwt-assertion]", jwtTokenPayLoad = jwtTokenPayLoad);
 
-                var email = jwtTokenPayLoad[1]["username"].toString();
-                log:printInfo("[x-jwt-assertion]", email = email);
-                // customers.add({id: subscription.userId, email: email});
+        string? userId = "";
+
+        // Get the userId from the authHeader
+        if authHeader != () {
+            var jwtTokenPayLoad = check jwt:decode(authHeader);
+            userId = jwtTokenPayLoad[1][CONST_SUB_CLAIM];
+            log:printInfo("[x-jwt-assertion]", jwtTokenPayLoad = jwtTokenPayLoad);
+            log:printInfo("[userid]", userId = userId);
+            // string userId = "d772c9f6-2807-4556-ba59-7ca9743428a2";
+            if userId != () {
+                Subscription newSubscription = {
+                    userId: userId,
+                    itemId: subscription.itemId
+                };
+
+                //check whether the subscription is already available
+                if userSubscriptions.hasKey([newSubscription.userId, newSubscription.itemId]) {
+                    return {
+                        body: {
+                            errmsg: string `Subscription already exists for Item Code: ${newSubscription.itemId}`
+                        }
+                    };
+                }
+                userSubscriptions.add(newSubscription); // add subscription to the subscription table
+
+                // add an item to the customers table with userid and email if it does not exist
+                if !customers.hasKey(newSubscription.userId) {
+                    var email = jwtTokenPayLoad[1][CONST_USERNAME_CLAIM].toString();
+                    log:printInfo(CONST_USERNAME_CLAIM, email = email);
+                    customers.add({id: newSubscription.userId, email: email});
+                }
 
             }
         }
+
         return;
     }
 
     //A resource function to delete a subscription for a given itemId in the request, by reading the userId from the JWT token
-    resource function delete subscriptions/[string itemId](@http:Header {name: "x-jwt-assertion"} string? authHeader)
+    resource function delete subscriptions/[string itemId](@http:Header {name: CONST_X_JWT_ASSERTION} string? authHeader)
                                                             returns InvalidItemCodeError?|error {
 
         if authHeader != () {
             var jwtTokenPayLoad = check jwt:decode(authHeader);
-            var userId = jwtTokenPayLoad[1]["sub"];
+            var userId = jwtTokenPayLoad[1][CONST_SUB_CLAIM];
             // log:printInfo("[x-jwt-assertion]", userId = userId);
             // string userId = "d772c9f6-2807-4556-ba59-7ca9743428a2";
             if userId != () {
@@ -152,6 +170,7 @@ service /ecomm on new http:Listener(9090) {
                 }
             };
         }
+        decimal? oldPrice = itemEntry.price;
         itemEntry.imageUrl = item.imageUrl;
         itemEntry.title = item.title;
         itemEntry.description = item.description;
@@ -161,11 +180,15 @@ service /ecomm on new http:Listener(9090) {
         itemEntry.intendedFor = item.intendedFor;
         itemEntry.color = item.color;
         itemEntry.material = item.material;
+        
+        // Send an email to the subscribers if the price of the item is reduced
+        _ = start sendEmail(itemEntry, oldPrice, item.price);
+
         return itemEntry;
     }
 
     // A resource function to patch a field of an item in the ItemTable for a item.id specified in the path
-    resource function patch items/[string id]/update(@http:Payload Item item) returns Item|InvalidItemCodeError|error {
+    resource function patch items/[string id]/update(@http:Payload Item updatedItem) returns Item|InvalidItemCodeError|error {
         Item? itemEntry = itemTable[id];
         if itemEntry is () {
             return {
@@ -174,33 +197,34 @@ service /ecomm on new http:Listener(9090) {
                 }
             };
         }
-        if item.imageUrl != () {
-            itemEntry.imageUrl = item.imageUrl;
+        if updatedItem.imageUrl != () {
+            itemEntry.imageUrl = updatedItem.imageUrl;
         }
-        if item.title != () {
-            itemEntry.title = item.title;
+        if updatedItem.title != () {
+            itemEntry.title = updatedItem.title;
         }
-        if item.description != () {
-            itemEntry.description = item.description;
+        if updatedItem.description != () {
+            itemEntry.description = updatedItem.description;
         }
-        if item.price != () {
-            // itemEntry.price = item.price;
-            _ = check sendEmail(itemEntry, item);
+        if updatedItem.price != () {
+            decimal? oldPrice = itemEntry.price;
+            itemEntry.price = updatedItem.price;
+            _ = start sendEmail(itemEntry, oldPrice, updatedItem.price);
         }
-        if item.isAvailable != () {
-            itemEntry.isAvailable = item.isAvailable;
+        if updatedItem.isAvailable != () {
+            itemEntry.isAvailable = updatedItem.isAvailable;
         }
-        if item.includes != () {
-            itemEntry.includes = item.includes;
+        if updatedItem.includes != () {
+            itemEntry.includes = updatedItem.includes;
         }
-        if item.intendedFor != () {
-            itemEntry.intendedFor = item.intendedFor;
+        if updatedItem.intendedFor != () {
+            itemEntry.intendedFor = updatedItem.intendedFor;
         }
-        if item.color != () {
-            itemEntry.color = item.color;
+        if updatedItem.color != () {
+            itemEntry.color = updatedItem.color;
         }
-        if item.material != () {
-            itemEntry.material = item.material;
+        if updatedItem.material != () {
+            itemEntry.material = updatedItem.material;
         }
         return itemEntry;
     }
@@ -327,51 +351,52 @@ public type InvalidItemCodeError record {|
     ErrorMsg body;
 |};
 
-public type BookIsnotAvailable record {|
-    *http:Forbidden;
-    ErrorMsg body;
-|};
-
 public type ErrorMsg record {|
     string errmsg;
 |};
 
+//* A function to get the emails of the users who subscribed to a particular item
+# Description
+# + itemId - Item Id to get subscriptions 
+# + return - Emails of users subscribed to the item
 public function getEmails(string itemId) returns string[] {
     var subscriptions = userSubscriptions.filter(s => s.itemId == itemId);
     return from var subscription in subscriptions
         select customers.get(subscription.userId).email;
 }
 
-//A function to send an email to the user when a new item is added using gmail:Client
-# Description
-#
-# + item - Parameter Description
-# + return - Return Value Description
-function sendEmail(Item item, Item newItem) returns error? {
+//* function to send an email to the user when a new item is added using ballerina email connector
+# Using https://mailtrap.io/ as SMPT server
+# + item - Parameter Description  
+# + oldPrice - OldPrice of the item  
+# + newPrice - NewPrice of the item
+# + return - Error if the email sending fails
+function sendEmail(Item item, decimal? oldPrice, decimal? newPrice) returns error? {
 
-    if (newItem.price < item.price) {
+    if (newPrice < oldPrice) {
         string[] emails = getEmails(item.id);
         // log:printInfo("BCC Address", emails = emailsString);
 
         // Define a html body for the email with item update details
-        string readContent = check io:fileReadString("/tmp/Email.html");
+        string readContent = check io:fileReadString("./tmp/Email.html");
         var title = item.title ?: "No Title";
-        var price = newItem.price.toString();
+        var price = newPrice.toString();
 
-        readContent = regex:replaceAll(readContent, "TITLE", title);
-        readContent = regex:replaceAll(readContent, "PRICE", price);
-        // io:println(readContent);
+        readContent = regex:replaceAll(readContent, CONST_TITLE, title);
+        readContent = regex:replaceAll(readContent, CONST_PRICE, price);
+        io:println(emails);
 
         //Send email with choreo email connector
         // _ = check emailClient->sendEmail("*****@wso2.com", readContent, "", emailsString);
-        
+
         //Send email with SmtpClient
         email:SmtpConfiguration smtpConfig = {
             port: 2525,
             security: email:START_TLS_AUTO
         };
 
-        email:SmtpClient smtpClient = check new ("smtp.mailtrap.io", "<username>", "<password>", smtpConfig);
+        // create smtp client with connection parameters (https://mailtrap.io/)
+        email:SmtpClient smtpClient = check new ("smtp.mailtrap.io", "cac12489c7c00b", "9f11df0a66bcc3", smtpConfig);
         email:Message email = {
             to: emails,
             cc: [],
@@ -380,11 +405,12 @@ function sendEmail(Item item, Item newItem) returns error? {
             body: readContent,
             'from: "smtp.mailtrap.io",
             sender: "smtp.mailtrap.io",
-            replyTo: ["replyTo1@email.com", "replyTo2@email.com"],
+            replyTo: ["replyTo1@ecomm.com", "replyTo2@ecomm.com"],
             headers: {
-                "Content-Type": "text/html"}
+                "Content-Type": "text/html"
+            }
         };
-        item.price = newItem.price;
+
         // call smtp client asynchronous send
         _ = start smtpClient->sendMessage(email);
     }
